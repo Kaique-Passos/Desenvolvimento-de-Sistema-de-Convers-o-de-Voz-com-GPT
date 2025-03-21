@@ -1,0 +1,6 @@
+pyaudio
+faster-whisper
+groq
+edge-tts
+playsound
+numpy
