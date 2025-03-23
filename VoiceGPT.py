@@ -63,10 +63,15 @@ def record_until_silence(silence_duration):
         wf.setframerate(RATE)
         wf.writeframes(b''.join(frames))
 
+transcription_text = ""
+
 while True:
     audio = pyaudio.PyAudio()
     os.system("clear")
-    print("Diga computador para ativar o assistente")
+    if transcription_text != "Responda em português. ":
+        print("Diga 'OK computador' para ativar o assistente")
+    else:
+        print("Não foi possível identificar a pergunta, tente novamente. Diga OK computador")
     stream = audio.open(format=FORMAT, channels=CHANNELS,
                         rate=RATE, input=True,
                         frames_per_buffer=CHUNK)
@@ -95,71 +100,58 @@ while True:
     whisper_elapsed_time = end_whisper_time - start_whisper_time
     #print(f"Tempo entre pergunta e resposta: {whisper_elapsed_time:.2f} segundos")
 
-    print(transcription_text)
-    start_time = time.time()
-    completion = client.chat.completions.create(
-        model="deepseek-r1-distill-qwen-32b",
-        messages=[
-            {
-                "role": "user",
-                "content": transcription_text
-            }
-        ]
-    )
+    if transcription_text == "Responda em português. ":
+        print("Não foi possível identificar a pergunta, tente novamente.")
+    else:
+        print(transcription_text)
+        start_time = time.time()
+        completion = client.chat.completions.create(
+            model="deepseek-r1-distill-qwen-32b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": transcription_text
+                }
+            ]
+        )
 
-    parts = completion.choices[0].message.content.split("</think>")
-    clean_text = parts[1].replace("*", "")
-    clean_text2 = clean_text.replace("\\", "")
-    #print(clean_text)
-    async def text_to_speech():
-        rate = "+30%"  # Increase speed by 30%
-        volume = "-80%"  # Slight volume boost
-        voice = "pt-BR-FranciscaNeural"  # You can change the voice model
-        output_file = "voz.mp3"
+        parts = completion.choices[0].message.content.split("</think>")
+        clean_text = parts[1].replace("*", "")
+        clean_text2 = clean_text.replace("\\", "")
+        #print(clean_text)
+        async def text_to_speech():
+            rate = "+30%"  # Increase speed by 30%
+            volume = "-80%"  # Slight volume boost
+            voice = "pt-BR-FranciscaNeural"  # You can change the voice model
+            output_file = "voz.mp3"
 
-        # Create the TTS object and save the output as an MP3 file
-        communicate = edge_tts.Communicate(clean_text2, voice, rate=rate, volume=volume)
-        await communicate.save(output_file)
+            # Create the TTS object and save the output as an MP3 file
+            communicate = edge_tts.Communicate(clean_text2, voice, rate=rate, volume=volume)
+            await communicate.save(output_file)
 
-        #print("Speech saved to:", output_file)
+            #print("Speech saved to:", output_file)
 
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    #print(f"Tempo entre pergunta e resposta: {elapsed_time:.2f} segundos")
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        #print(f"Tempo entre pergunta e resposta: {elapsed_time:.2f} segundos")
 
-    # Run the async function
-    asyncio.run(text_to_speech())
-
-#    with wave.open("voz.mp3", "r") as audio:
-#        frames = audio.getnframes()
-#        rate = audio.getframerate()
-#        duration_seconds = frames / float(rate)
-#        print(f"Duration: {duration_seconds} seconds")
-
-    playaudioProcess = subprocess.Popen(["play", "voz.mp3"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
-    #playaudioProcess.wait()
-
-    #audio = pyaudio.PyAudio()
-    #stream = audio.open(format=FORMAT, channels=CHANNELS,
-    #                    rate=RATE, input=True,
-    #                    frames_per_buffer=CHUNK)
-    data = stream.read(CHUNK)
-    os.system("clear")
-    while playaudioProcess.poll() is None:
+        # Run the async function
+        asyncio.run(text_to_speech())
+        playaudioProcess = subprocess.Popen(["play", "voz.mp3"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
         data = stream.read(CHUNK)
-        if( is_silent(data)):
-            #print("voz nao detectada")
-            pass
-        else:
-            print("voz detectada")
+        os.system("clear")
+        while playaudioProcess.poll() is None:
+            data = stream.read(CHUNK)
+            if( is_silent(data)):
+                #print("voz nao detectada")
+                pass
+            else:
+                print("voz detectada")
+                playaudioProcess.terminate()
+                break
+            
+        if playaudioProcess.poll():
             playaudioProcess.terminate()
-            break
-        
-    if playaudioProcess.poll():
-        playaudioProcess.terminate()
     stream.stop_stream()
     stream.close()
     audio.terminate()
-    #playaudioProcess.terminate()
-    #os.system("play voz.mp3")
-    #os.system("clear")
