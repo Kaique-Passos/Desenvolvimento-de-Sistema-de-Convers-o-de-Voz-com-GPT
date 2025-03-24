@@ -20,4 +20,4 @@ Kaique S. Passos, Higor D. Oliveira, Victor F. Rocha
       pip install -r requirements.txt
   
   
-  [![Watch the video](media/thumbnail.png)](video/demo.mp4)
+  [![Watch the video](media/thumbnail.png)](media/demo-ubuntu.mkv)
